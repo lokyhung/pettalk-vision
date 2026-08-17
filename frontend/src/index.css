@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-ink: #e8eef7;
+  --color-mute: #8b9bb4;
+  --color-line: rgba(125, 211, 252, 0.14);
+  --color-cyan: #22d3ee;
+  --color-lime: #a3e635;
+  --color-amber: #fbbf24;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #e8eef7;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(34, 211, 238, 0.08), transparent 50%),
+    radial-gradient(900px 500px at 100% 0%, rgba(163, 230, 53, 0.05), transparent 45%),
+    #05070a;
+  font-family: var(--font-sans);
+}
+
+.glass {
+  background: rgba(8, 12, 18, 0.72);
+  border: 1px solid var(--color-line);
+  backdrop-filter: blur(18px);
+}
+
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(34, 211, 238, 0.03) 3px,
+    rgba(34, 211, 238, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.live-dot {
+  animation: pulse-live 1.6s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.35s ease both;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 155, 180, 0.35);
+  border-radius: 99px;
+}

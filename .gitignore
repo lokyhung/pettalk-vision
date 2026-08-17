@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/.venv/
+.venv/
+__pycache__/
+*.py[cod]
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Build
+frontend/dist/
+frontend/.vite/
+
+# Environment
+.env
+.env.local
+backend/.env
+
+# Models (auto-downloaded)
+backend/models/*.pt
+*.pt
+runs/
+datasets/
+backend/Ultralytics/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Test / coverage
+coverage/
+.coverage
+htmlcov/

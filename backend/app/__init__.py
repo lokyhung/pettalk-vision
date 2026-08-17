@@ -1,0 +1,1 @@
+"""PetTalk Vision inference service."""
