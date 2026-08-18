@@ -1,11 +1,12 @@
 import { formatClock } from "../lib/api";
+import { copy } from "../lib/i18n";
 import type { TimelineEvent } from "../types";
 
 export function BehaviourTimeline({ events, elapsed }: { events: TimelineEvent[]; elapsed: number }) {
   return (
-    <section className="glass rounded-2xl p-4">
+    <section className="glass shrink-0 rounded-2xl p-3.5">
       <div className="mb-3 flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-mute">LIVE BEHAVIOUR TIMELINE</p>
+        <p className="text-[11px] tracking-[0.16em] text-mute">{copy.timeline}</p>
         <span className="font-mono text-[11px] text-cyan-300">{formatClock(elapsed)}</span>
       </div>
       <div className="relative">
@@ -13,7 +14,7 @@ export function BehaviourTimeline({ events, elapsed }: { events: TimelineEvent[]
         <div className="flex gap-3 overflow-x-auto pb-1">
           {events.length === 0 && (
             <div className="rounded-xl border border-dashed border-white/10 px-4 py-3 text-sm text-mute">
-              Timeline will record detection and posture changes as they stabilize.
+              {copy.timelineEmpty}
             </div>
           )}
           {events.map((event, i) => (

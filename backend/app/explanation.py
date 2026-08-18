@@ -1,4 +1,4 @@
-"""Template explanations, with an optional OpenAI layer that must never break the demo."""
+"""Template explanations in Traditional Chinese, plus an optional LLM that must never break the demo."""
 
 from __future__ import annotations
 
@@ -11,18 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 def template_explanation(analysis: dict[str, Any], profile: dict[str, Any] | None = None) -> dict[str, str]:
-    name = (profile or {}).get("name") or "your dog"
-    personality = (profile or {}).get("personality") or ""
     why = analysis.get("why") or ""
     observe = analysis.get("observeNext") or ""
-    extra = ""
-    if personality:
-        extra = (
-            f" {name}'s listed personality ({personality}) is background context only "
-            "and was not used as proof of an emotional state."
-        )
     return {
-        "whyPetTalkThinksThis": why + extra,
+        "whyPetTalkThinksThis": why.strip(),
         "whatYouCanObserveNext": observe,
         "source": "rules",
     }
@@ -44,14 +36,16 @@ async def maybe_llm_explanation(
     cues = analysis.get("cues") or []
 
     prompt = (
-        "You are writing a cautious computer-vision product explanation. "
-        "Never claim you know the dog's true emotions or medical state. "
-        "Use phrases like 'may be consistent with', 'possible mood', and 'based on observed cues'. "
-        "Write two short paragraphs.\n"
-        "1) Why PetTalk thinks this (based only on the signals).\n"
-        "2) What the viewer can observe next.\n"
-        f"Dog name: {name}. Profile: {profile}.\n"
-        f"Pose: {pose}. Action: {action}. Possible mood: {mood}. Cues: {cues}."
+        "你正在為香港用戶撰寫謹慎的寵物電腦視覺說明，必須使用香港繁體中文。"
+        "不可聲稱知道狗狗的真實情緒或健康狀況。"
+        "請使用「可能表示」「可能與……一致」「值得留意」等措辭。"
+        "寵物資料只可作為背景，不可覆蓋或改寫電腦視覺偵測結果。"
+        "若活動量與性格紀錄明顯不同，可以提醒主人留意，但仍須寫成推測。\n"
+        "請寫兩段短文：\n"
+        "1) 分析原因（只根據可觀察訊號）\n"
+        "2) 建議留意\n"
+        f"名字：{name}。資料：{profile}。\n"
+        f"姿勢：{pose}。動作：{action}。可能狀態：{mood}。線索：{cues}。"
     )
 
     try:
@@ -62,7 +56,7 @@ async def maybe_llm_explanation(
             "messages": [
                 {
                     "role": "system",
-                    "content": "You explain pet posture observations carefully. No diagnosis. No mind-reading.",
+                    "content": "你用香港繁體中文解釋寵物姿勢觀察。不可診斷，不可讀心。",
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -85,6 +79,6 @@ async def maybe_llm_explanation(
             "whatYouCanObserveNext": nxt,
             "source": "llm",
         }
-    except Exception as exc:  # noqa: BLE001 — optional path must never crash the demo
+    except Exception as exc:  # noqa: BLE001
         logger.info("LLM explanation skipped: %s", exc)
         return None

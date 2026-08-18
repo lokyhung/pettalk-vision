@@ -13,6 +13,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from .config import get_settings
 from .keypoints import KEYPOINT_NAMES, empty_keypoints
 
 
@@ -21,7 +22,8 @@ def _clip01(v: float) -> float:
 
 
 def _point(name: str, x: float, y: float, conf: float, w: int, h: int) -> dict[str, Any]:
-    visible = conf >= 0.28 and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
+    min_conf = get_settings().keypoint_conf_threshold
+    visible = conf >= min_conf and 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
     if x * w < 1 or y * h < 1 or x * w > w - 2 or y * h > h - 2:
         conf *= 0.75
     return {
@@ -203,25 +205,25 @@ def estimate_keypoints(
     rr_elbow = lerp(tail_start_pt, rr_paw, 0.32)
     rr_knee = lerp(tail_start_pt, rr_paw, 0.66)
 
-    # Ears / eyes from head peaks when available.
+    # Ear tips from a silhouette are too weak to support mood inference.
     if len(ear_peaks) >= 2:
         left_ear, right_ear = (ear_peaks[0], ear_peaks[1]) if ear_peaks[0][0] <= ear_peaks[1][0] else (
             ear_peaks[1],
             ear_peaks[0],
         )
-        ear_conf = 0.58
+        ear_conf = 0.36
     elif len(ear_peaks) == 1:
         peak = ear_peaks[0]
         offset = np.array([max(bw * 0.07, 5.0), 0.0])
         left_ear, right_ear = peak - offset, peak + offset
-        ear_conf = 0.34
+        ear_conf = 0.28
     else:
         offset = perp * max(bw * 0.07, 5.0)
         left_ear = throat_pt + up * max(bh * 0.12, 8.0) - offset
         right_ear = throat_pt + up * max(bh * 0.12, 8.0) + offset
         if left_ear[0] > right_ear[0]:
             left_ear, right_ear = right_ear, left_ear
-        ear_conf = 0.22
+        ear_conf = 0.18
 
     left_ear_base = lerp(np.array(left_ear), throat_pt, 0.45)
     right_ear_base = lerp(np.array(right_ear), throat_pt, 0.45)
@@ -242,17 +244,17 @@ def estimate_keypoints(
 
     coords: dict[str, tuple[np.ndarray, float]] = {
         "front_left_paw": (fl_paw, front_paw_c * trunc),
-        "front_left_knee": (fl_knee, front_paw_c * 0.9 * trunc),
-        "front_left_elbow": (fl_elbow, 0.6 * trunc),
+        "front_left_knee": (fl_knee, front_paw_c * 0.72 * trunc),
+        "front_left_elbow": (fl_elbow, 0.34 * trunc),
         "rear_left_paw": (rl_paw, rear_paw_c * trunc),
-        "rear_left_knee": (rl_knee, rear_paw_c * 0.9 * trunc),
-        "rear_left_elbow": (rl_elbow, 0.6 * trunc),
+        "rear_left_knee": (rl_knee, rear_paw_c * 0.72 * trunc),
+        "rear_left_elbow": (rl_elbow, 0.34 * trunc),
         "front_right_paw": (fr_paw, front_paw_c * trunc),
-        "front_right_knee": (fr_knee, front_paw_c * 0.9 * trunc),
-        "front_right_elbow": (fr_elbow, 0.6 * trunc),
+        "front_right_knee": (fr_knee, front_paw_c * 0.72 * trunc),
+        "front_right_elbow": (fr_elbow, 0.34 * trunc),
         "rear_right_paw": (rr_paw, rear_paw_c * trunc),
-        "rear_right_knee": (rr_knee, rear_paw_c * 0.9 * trunc),
-        "rear_right_elbow": (rr_elbow, 0.6 * trunc),
+        "rear_right_knee": (rr_knee, rear_paw_c * 0.72 * trunc),
+        "rear_right_elbow": (rr_elbow, 0.34 * trunc),
         "tail_start": (tail_start_pt, 0.62 * trunc),
         "tail_end": (tail_end_pt, 0.5 * trunc),
         "left_ear_base": (left_ear_base, ear_conf),
@@ -280,23 +282,22 @@ def smooth_keypoints(prev: list[dict] | None, current: list[dict], alpha: float 
     if not prev:
         return current
     out = []
+    min_conf = get_settings().keypoint_conf_threshold
     for p, c in zip(prev, current):
-        if not c["visible"] and p["visible"]:
-            out.append({**p, "confidence": p["confidence"] * 0.85})
-            continue
         if not c["visible"]:
             out.append(c)
             continue
-        if not p["visible"]:
+        if not p["visible"] or p["confidence"] < min_conf:
             out.append(c)
             continue
+        blended_conf = p["confidence"] * (1 - alpha) + c["confidence"] * alpha
         out.append(
             {
                 "name": c["name"],
                 "x": p["x"] * (1 - alpha) + c["x"] * alpha,
                 "y": p["y"] * (1 - alpha) + c["y"] * alpha,
-                "confidence": p["confidence"] * (1 - alpha) + c["confidence"] * alpha,
-                "visible": True,
+                "confidence": blended_conf,
+                "visible": blended_conf >= min_conf,
             }
         )
     return out

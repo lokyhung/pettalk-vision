@@ -45,14 +45,17 @@ export function lerpKeypoints(from: Keypoint[], to: Keypoint[], t: number): Keyp
   if (!from.length) return to;
   const amt = Math.max(0, Math.min(1, t));
   return to.map((kp, i) => {
+    if (!kp.visible || kp.confidence < 0.42) {
+      return { ...kp, visible: false };
+    }
     const prev = from[i];
-    if (!prev) return kp;
+    if (!prev?.visible || prev.confidence < 0.42) return kp;
     return {
       ...kp,
       x: prev.x + (kp.x - prev.x) * amt,
       y: prev.y + (kp.y - prev.y) * amt,
-      confidence: prev.confidence + (kp.confidence - prev.confidence) * amt,
-      visible: kp.visible || prev.visible,
+      confidence: kp.confidence,
+      visible: true,
     };
   });
 }

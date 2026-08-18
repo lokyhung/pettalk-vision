@@ -2,7 +2,16 @@
 
 Real-time canine behaviour analysis prototype: **camera/video → detect dog → pose keypoints → observable actions → possible mood → explanation**.
 
-This is a product demo, not a veterinary or medical diagnostic tool. Mood labels are **possible interpretations of visible cues**, not a claim that the system can read a dog's mind.
+The dashboard is in **Hong Kong Traditional Chinese**. Mood labels are **possible interpretations of visible cues**, not a claim that the system can read a dog's mind.
+
+Observable detections (dog, pose, sitting/standing/lying/walking) are separated from inferred possible states (好奇／警覺, 放鬆, etc.). Low-confidence keypoints are not drawn and are not used for classification. Behaviour is smoothed over the last ~14 frames.
+
+Thresholds (single config source, overridable via env):
+
+- `DOG_DETECTION_THRESHOLD=0.55`
+- `KEYPOINT_CONF_THRESHOLD=0.42`
+- `POSE_QUALITY_THRESHOLD=0.40`
+- `TEMPORAL_WINDOW=14`
 
 ## Architecture
 
@@ -26,7 +35,7 @@ React overlay + live dashboard + timeline
 
 Ultralytics publishes a [Dog-Pose dataset](https://docs.ultralytics.com/datasets/pose/dog-pose) (24 keypoints) but **does not ship pretrained Dog-Pose weights**. Training a custom model is out of scope for this prototype.
 
-The backend therefore uses a **pretrained YOLO nano instance-segmentation model** (`yolo11n-seg.pt`, falling back to `yolov8n-seg.pt`) to detect dogs and extract a silhouette, then reconstructs the 24 Dog-Pose keypoints from that mask each frame. The skeleton tracks the real animal; behaviours the silhouette cannot support are shown as **Insufficient visual evidence**.
+The backend therefore uses a **pretrained YOLO nano instance-segmentation model** (`yolo11n-seg.pt`, falling back to `yolov8n-seg.pt`) to detect dogs and extract a silhouette, then reconstructs the 24 Dog-Pose keypoints from that mask each frame. The skeleton tracks the real animal; behaviours the silhouette cannot support are shown as **資料不足** / **未能看見**.
 
 If you later train or obtain a `*.pt` pose checkpoint, set `CUSTOM_POSE_MODEL=/absolute/path/to/model.pt` (the file is still loaded through Ultralytics; detection currently expects a seg model).
 

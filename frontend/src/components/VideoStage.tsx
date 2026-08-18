@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AnalysisResult, InputMode, Keypoint } from "../types";
 import { OverlayCanvas } from "./OverlayCanvas";
+import { copy } from "../lib/i18n";
 
 const DEMO_SRC = "/assets/demo-dog.mp4";
 
@@ -31,7 +32,7 @@ export function VideoStage({
 }) {
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const [demoMissing, setDemoMissing] = useState(false);
-  const [showLabels, setShowLabels] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
 
   const bindVideo = (el: HTMLVideoElement | null) => {
     setVideoEl(el);
@@ -59,10 +60,16 @@ export function VideoStage({
   }, [mode, active, videoEl]);
 
   const live = active && (mode === "demo" || Boolean(stream));
-  const flags = analysis?.statusFlags ?? ["STANDBY"];
+  const status = !live ? "waiting" : analysis?.liveStatus || "analysing";
+  const statusView =
+    status === "live"
+      ? { dot: "bg-lime-400", text: `🟢 ${copy.liveAnalysis}`, border: "border-lime-400/30 text-lime-200" }
+      : status === "analysing"
+        ? { dot: "bg-amber-300", text: `🟡 ${copy.analysing}`, border: "border-amber-300/30 text-amber-200" }
+        : { dot: "bg-white/50", text: `⚪ ${copy.waiting}`, border: "border-white/15 text-mute" };
 
   return (
-    <section className="glass relative flex min-h-[420px] flex-1 flex-col overflow-hidden rounded-2xl">
+    <section className="glass relative flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-2xl lg:min-h-0">
       <div className="relative flex-1 bg-black/40">
         <video
           ref={bindVideo}
@@ -80,13 +87,9 @@ export function VideoStage({
 
         {!live && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#05070a]/70 p-8 text-center">
-            <p className="font-mono text-[11px] tracking-[0.28em] text-cyan-300/80">VISION PIPELINE IDLE</p>
-            <h2 className="max-w-md text-2xl font-semibold tracking-tight">
-              Point the camera at a dog to start live pose tracking.
-            </h2>
-            <p className="max-w-sm text-sm text-[var(--color-mute)]">
-              Webcam frames are sent to the local YOLO backend. If the camera is unavailable, use Demo Video Mode.
-            </p>
+            <p className="text-[11px] tracking-[0.2em] text-cyan-300/80">{copy.pipelineIdle}</p>
+            <h2 className="max-w-md text-2xl font-semibold tracking-tight">{copy.idleTitle}</h2>
+            <p className="max-w-sm text-sm text-[var(--color-mute)]">{copy.idleBody}</p>
             <div className="mt-2 flex flex-wrap justify-center gap-3">
               <button
                 type="button"
@@ -94,19 +97,19 @@ export function VideoStage({
                 disabled={starting}
                 className="rounded-full bg-cyan-400 px-5 py-2 text-sm font-semibold text-black hover:bg-cyan-300 disabled:opacity-60"
               >
-                {starting ? "Requesting camera…" : "Start Camera"}
+                {starting ? copy.requestingCamera : copy.startCamera}
               </button>
               <button
                 type="button"
                 onClick={onSwitchDemo}
                 className="rounded-full border border-white/15 px-5 py-2 text-sm text-ink hover:border-cyan-400/40"
               >
-                Demo Video Mode
+                {copy.tryDemo}
               </button>
             </div>
             {cameraError && (
               <p className="max-w-md text-xs text-amber-300">
-                Camera failed: {cameraError}. Switch to Demo Video Mode to continue.
+                {copy.cameraFailed}：{cameraError}。{copy.switchDemoHint}
               </p>
             )}
           </div>
@@ -114,17 +117,16 @@ export function VideoStage({
 
         {demoMissing && mode === "demo" && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-8 text-center">
-            <p className="max-w-md text-sm text-amber-200">
-              Place a sample clip at <code className="font-mono text-cyan-300">frontend/public/assets/demo-dog.mp4</code>{" "}
-              and reload. Any local MP4 of a dog will work.
-            </p>
+            <p className="max-w-md text-sm text-amber-200">{copy.demoMissing}</p>
           </div>
         )}
 
         <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2">
-          <span className="flex items-center gap-2 rounded-full border border-red-400/30 bg-black/55 px-3 py-1 font-mono text-[10px] tracking-[0.22em] text-red-300">
-            <span className="live-dot h-1.5 w-1.5 rounded-full bg-red-400" />
-            {live ? "LIVE" : "IDLE"}
+          <span
+            className={`flex items-center gap-2 rounded-full border bg-black/55 px-3 py-1 text-[11px] ${statusView.border}`}
+          >
+            <span className={`live-dot h-1.5 w-1.5 rounded-full ${statusView.dot}`} />
+            {statusView.text}
           </span>
           {analysis?.device && (
             <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 font-mono text-[10px] text-mute">
@@ -134,10 +136,10 @@ export function VideoStage({
         </div>
 
         <div className="pointer-events-none absolute right-4 top-4 flex flex-col items-end gap-1">
-          {flags.map((flag) => (
+          {(analysis?.statusFlags ?? []).map((flag) => (
             <span
               key={flag}
-              className="rounded border border-cyan-400/20 bg-black/55 px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] text-cyan-200/90"
+              className="rounded border border-cyan-400/20 bg-black/55 px-2 py-0.5 text-[10px] tracking-[0.12em] text-cyan-200/90"
             >
               {flag}
             </span>
@@ -145,17 +147,15 @@ export function VideoStage({
         </div>
 
         <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-          <p className="max-w-md text-[11px] leading-relaxed text-white/55">
-            Prototype · not a veterinary diagnosis · possible mood is inferred from visible posture only
-          </p>
-          <label className="pointer-events-auto flex cursor-pointer items-center gap-2 font-mono text-[10px] text-mute">
+          <p className="max-w-md text-[11px] leading-relaxed text-white/55">{copy.prototypeNote}</p>
+          <label className="pointer-events-auto flex cursor-pointer items-center gap-2 text-[11px] text-mute">
             <input
               type="checkbox"
               checked={showLabels}
               onChange={(e) => setShowLabels(e.target.checked)}
               className="accent-cyan-400"
             />
-            Keypoint labels
+            {copy.keypointLabels}
           </label>
         </div>
       </div>

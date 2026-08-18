@@ -23,7 +23,7 @@ export function useCamera() {
       setStream(media);
       return media;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Camera permission was denied.";
+      const message = err instanceof Error ? err.message : "鏡頭權限被拒絕。";
       setError(message);
       return null;
     } finally {

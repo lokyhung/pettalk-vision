@@ -49,9 +49,12 @@ app.add_middleware(
 
 class Profile(BaseModel):
     name: str = "Mochi"
-    species: str = "Dog"
-    age: str = "5 years"
-    personality: str = "Shy / Playful"
+    species: str = "狗狗"
+    breed: str = ""
+    age: str = "5 歲"
+    personality: str = ""
+    traits: list[str] = Field(default_factory=list)
+    likes: str = ""
 
 
 class ExplainRequest(BaseModel):
@@ -81,10 +84,7 @@ def health() -> dict[str, Any]:
         "device": getattr(analyzer, "device", None),
         "model": getattr(analyzer, "model_name", None),
         "llmConfigured": bool(settings.openai_api_key.strip()),
-        "disclaimer": (
-            "Prototype only. Not a veterinary diagnostic tool. "
-            "Mood labels are possible interpretations of visual cues, not the dog's actual emotional state."
-        ),
+        "disclaimer": "此為產品示範，並非獸醫診斷。可能狀態只是根據可觀察線索作出的推測。",
     }
 
 
@@ -117,9 +117,12 @@ async def ws_analyze(ws: WebSocket) -> None:
     session = SessionState()
     profile: dict[str, Any] = {
         "name": "Mochi",
-        "species": "Dog",
-        "age": "5 years",
-        "personality": "Shy / Playful",
+        "species": "狗狗",
+        "breed": "",
+        "age": "5 歲",
+        "personality": "",
+        "traits": ["害羞", "安靜"],
+        "likes": "",
     }
     loop = asyncio.get_running_loop()
     busy = False

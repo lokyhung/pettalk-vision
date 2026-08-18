@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     custom_pose_model: str = ""
 
+    # Single source of truth for detection / pose / smoothing.
+    dog_detection_threshold: float = 0.55
+    keypoint_conf_threshold: float = 0.42
+    pose_quality_threshold: float = 0.40
+    temporal_window: int = 14
+    action_switch_frames: int = 6
+    walking_switch_frames: int = 8
+    mood_switch_frames: int = 6
+    timeline_min_seconds: float = 1.4
+    movement_low: float = 0.045
+    movement_high: float = 0.12
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -42,7 +42,7 @@ export function useAnalysisStream(
       setConnected(false);
     };
     socket.onerror = () => {
-      setBackendError("Vision backend is not reachable. Start the FastAPI server.");
+      setBackendError("未能連接視覺後端，請先啟動 FastAPI 伺服器。");
     };
     socket.onmessage = (event) => {
       try {
@@ -125,7 +125,7 @@ export function useAnalysisStream(
     const loop = () => {
       const target = targetRef.current;
       if (target.length) {
-        const next = lerpKeypoints(displayRef.current, target, 0.28);
+        const next = lerpKeypoints(displayRef.current, target, 0.22);
         displayRef.current = next;
         setDisplayKeypoints(next);
       }

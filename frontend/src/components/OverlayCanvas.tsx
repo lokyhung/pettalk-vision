@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { AnalysisResult, Keypoint } from "../types";
+import { copy, keypointZh } from "../lib/i18n";
 
 const LABEL_ALLOW = new Set([
   "nose",
@@ -23,6 +24,7 @@ export function OverlayCanvas({
   showLabels: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boxRef = useRef<[number, number, number, number] | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -60,20 +62,34 @@ export function OverlayCanvas({
 
       const det = analysis?.detection;
       if (det?.present && det.bbox) {
-        const [x1, y1, x2, y2] = det.bbox;
+        const target = det.bbox;
+        const prev = boxRef.current;
+        const blended: [number, number, number, number] = prev
+          ? [
+              prev[0] + (target[0] - prev[0]) * 0.22,
+              prev[1] + (target[1] - prev[1]) * 0.22,
+              prev[2] + (target[2] - prev[2]) * 0.22,
+              prev[3] + (target[3] - prev[3]) * 0.22,
+            ]
+          : target;
+        boxRef.current = blended;
+        const [x1, y1, x2, y2] = blended;
         drawBox(ctx, px(x1), py(y1), (x2 - x1) * rw, (y2 - y1) * rh, det.confidence);
+      } else {
+        boxRef.current = null;
       }
 
       const kps = keypoints.length ? keypoints : analysis?.keypoints || [];
       const skeleton = analysis?.skeleton || [];
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(163, 230, 53, 0.85)";
+      const kpMin = analysis?.thresholds?.keypoint ?? 0.42;
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = "rgba(163, 230, 53, 0.55)";
       ctx.lineCap = "round";
       for (const [ia, ib] of skeleton) {
         const a = kps[ia];
         const b = kps[ib];
         if (!a?.visible || !b?.visible) continue;
-        if (a.confidence < 0.3 || b.confidence < 0.3) continue;
+        if (a.confidence < kpMin || b.confidence < kpMin) continue;
         ctx.beginPath();
         ctx.moveTo(px(a.x), py(a.y));
         ctx.lineTo(px(b.x), py(b.y));
@@ -81,24 +97,19 @@ export function OverlayCanvas({
       }
 
       for (const kp of kps) {
-        if (!kp.visible || kp.confidence < 0.28) continue;
+        if (!kp.visible || kp.confidence < kpMin) continue;
         const x = px(kp.x);
         const y = py(kp.y);
-        const r = 3.2 + kp.confidence * 1.8;
+        const r = 2.6 + kp.confidence * 1.4;
         ctx.beginPath();
-        ctx.fillStyle = "rgba(34, 211, 238, 0.95)";
+        ctx.fillStyle = "rgba(34, 211, 238, 0.78)";
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fill();
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(232, 238, 247, 0.55)";
-        ctx.lineWidth = 1;
-        ctx.arc(x, y, r + 2.2, 0, Math.PI * 2);
-        ctx.stroke();
 
         if (showLabels && LABEL_ALLOW.has(kp.name)) {
-          ctx.font = "10px IBM Plex Mono, monospace";
-          ctx.fillStyle = "rgba(232, 238, 247, 0.8)";
-          ctx.fillText(kp.name.replaceAll("_", " "), x + 7, y - 7);
+          ctx.font = "10px IBM Plex Mono, PingFang HK, sans-serif";
+          ctx.fillStyle = "rgba(232, 238, 247, 0.75)";
+          ctx.fillText(keypointZh[kp.name] || kp.name, x + 7, y - 7);
         }
       }
 
@@ -143,7 +154,7 @@ function drawBox(
   ctx.lineTo(x, y + h - tick);
   ctx.stroke();
 
-  const label = `DOG  ${(confidence * 100).toFixed(1)}%`;
+  const label = `${copy.overlayDog}  ${(confidence * 100).toFixed(1)}%`;
   ctx.font = "600 11px IBM Plex Mono, monospace";
   const padX = 8;
   const tw = ctx.measureText(label).width;

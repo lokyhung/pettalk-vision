@@ -4,6 +4,6 @@ Replace this file with any local MP4 of a dog:
 
 The UI always loads this path. No external video URL is required at runtime.
 
-The checked-in sample is a short local clip of a sitting dog, generated for Demo Video Mode.
-You can drop in a webcam recording or any other MP4 to test walking, play bows, and other postures.
+The checked-in sample is a short local clip of a sitting dog (Mochi) for Demo Video Mode.
+Drop in a webcam recording or another MP4 to test walking, play bows, and other postures.
 
