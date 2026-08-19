@@ -1,4 +1,4 @@
-import { ACTIVITY_META, type ActivityEvent, type ActivityId, type TimelineEvent } from "../types";
+import type { ActivityEvent, ActivityId, TimelineEvent } from "../types";
 
 export type DemoActivityCode = ActivityId | "detected";
 

@@ -26,6 +26,7 @@ datasets/
 backend/Ultralytics/
 
 # OS / editor
+.vercel
 .DS_Store
 .idea/
 .vscode/
