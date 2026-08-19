@@ -4,7 +4,7 @@ Place MP4 files here. The UI reads these paths and labels the mode as「示範�
   dog-walking.mp4   狗狗走動
   dog-resting.mp4   狗狗休息
   dog-eating.mp4    狗狗進食／與物件互動
-  dog-mixed.mp4     混合活動（休息→走動→玩耍→走動→休息）
+  dog-mixed.mp4     家居活動（同一隻狗、同一個客廳；休息→走動→玩耍→進食→走動）
 
 Filenames must match `frontend/src/lib/demos.ts`.
 
