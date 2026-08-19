@@ -80,8 +80,9 @@ export default function App() {
         try {
           const res = await fetch(item.src, { method: "GET", headers: { Range: "bytes=0-8" } });
           const type = res.headers.get("content-type") || "";
-          const ok = res.ok && /video|octet-stream|mp4/i.test(type);
-          return [item.id, !ok] as const;
+          const found = res.ok || res.status === 206;
+          const html = /html|json/i.test(type);
+          return [item.id, !(found && !html)] as const;
         } catch {
           return [item.id, true] as const;
         }

@@ -22,6 +22,11 @@ export interface DemoVideo {
   expectedActivities: DemoExpectedSegment[];
 }
 
+function videoSrc(file: string): string {
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+  return `${base}videos/${file}`;
+}
+
 /**
  * Demo annotation layer only. Independent of the real CV activity engine.
  * Timestamps follow the actual files in frontend/public/videos/.
@@ -31,7 +36,7 @@ export const DEMO_SCENARIOS: DemoVideo[] = [
     id: "playing",
     title: "狗狗玩耍",
     icon: "🎾",
-    src: "/videos/dog-playing.mp4",
+    src: videoSrc("dog-playing.mp4"),
     duration: 8.59,
     expectedActivity: "playing",
     expectedMovement: "high",
@@ -46,7 +51,7 @@ export const DEMO_SCENARIOS: DemoVideo[] = [
     id: "walking",
     title: "狗狗走動",
     icon: "🚶",
-    src: "/videos/dog-walking.mp4",
+    src: videoSrc("dog-walking.mp4"),
     duration: 5.12,
     expectedActivity: "exploring",
     expectedMovement: "high",
@@ -60,7 +65,7 @@ export const DEMO_SCENARIOS: DemoVideo[] = [
     id: "resting",
     title: "狗狗休息",
     icon: "💤",
-    src: "/videos/dog-resting.mp4",
+    src: videoSrc("dog-resting.mp4"),
     duration: 10,
     expectedActivity: "resting",
     expectedMovement: "low",
@@ -71,7 +76,7 @@ export const DEMO_SCENARIOS: DemoVideo[] = [
     id: "eating",
     title: "狗狗進食",
     icon: "🦴",
-    src: "/videos/dog-eating.mp4",
+    src: videoSrc("dog-eating.mp4"),
     duration: 8.3,
     expectedActivity: "eating",
     expectedMovement: "medium",
@@ -86,7 +91,7 @@ export const DEMO_SCENARIOS: DemoVideo[] = [
     id: "mixed",
     title: "家居活動",
     icon: "🏠",
-    src: "/videos/dog-mixed.mp4",
+    src: videoSrc("dog-mixed.mp4"),
     duration: 10.1,
     expectedActivity: "active",
     expectedMovement: "medium",
