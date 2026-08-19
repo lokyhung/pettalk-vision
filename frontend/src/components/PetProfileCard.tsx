@@ -55,8 +55,11 @@ export function PetProfileCard({
           <Row label={copy.species} value={profile.species} />
           <Row label={copy.breed} value={profile.breed || copy.noValue} />
           <Row label={copy.age} value={profile.age} />
+          <Row label={copy.gender} value={profile.gender || copy.noValue} />
+          <Row label={copy.activityLevel} value={profile.activityLevel || copy.noValue} />
           <Row label={copy.personality} value={profile.traits.join("、") || copy.noValue} />
           <Row label={copy.likes} value={profile.likes || copy.noValue} />
+          <Row label={copy.habits} value={profile.habits || copy.noValue} />
         </div>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -80,6 +83,40 @@ export function PetProfileCard({
           </label>
           <Field label={copy.breed} value={draft.breed} onChange={(breed) => setDraft({ ...draft, breed })} />
           <Field label={copy.age} value={draft.age} onChange={(age) => setDraft({ ...draft, age })} />
+          <label className="block">
+            <span className="text-[11px] text-mute">{copy.gender}</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(["未設定", "公", "母"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, gender: g })}
+                  className={`rounded-full px-3 py-1 text-[11px] ${
+                    draft.gender === g ? "bg-cyan-400 text-black" : "border border-white/10 text-mute"
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-mute">{copy.activityLevel}</span>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(["低", "中", "高"] as const).map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, activityLevel: level })}
+                  className={`rounded-full px-3 py-1 text-[11px] ${
+                    draft.activityLevel === level ? "bg-cyan-400 text-black" : "border border-white/10 text-mute"
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          </label>
           <label className="col-span-2 block">
             <span className="text-[11px] text-mute">{copy.personality}</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -105,6 +142,15 @@ export function PetProfileCard({
             <textarea
               value={draft.likes}
               onChange={(e) => setDraft({ ...draft, likes: e.target.value })}
+              rows={2}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-cyan-400/40"
+            />
+          </label>
+          <label className="col-span-2 block">
+            <span className="text-[11px] text-mute">{copy.habits}</span>
+            <textarea
+              value={draft.habits || ""}
+              onChange={(e) => setDraft({ ...draft, habits: e.target.value })}
               rows={2}
               className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-cyan-400/40"
             />

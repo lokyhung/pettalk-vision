@@ -9,7 +9,7 @@ ANALYSING = "analysing"
 POSE_LABELS = {
     "standing": "站立",
     "sitting": "坐下",
-    "lying": "躺下",
+    "lying": "趴下",
     "play_bow": "玩耍鞠躬",
     "forward": "向前",
     "left": "向左",
@@ -48,11 +48,11 @@ ACTION_ICONS = {
 }
 
 MOOD_LABELS = {
-    "alert_curious": "好奇／警覺",
-    "relaxed": "放鬆",
-    "playful": "活潑／玩耍",
-    "stress_fear": "可能緊張／害怕",
-    "defensive": "可能防備",
+    "alert_curious": "可能狀態：警覺",
+    "relaxed": "可能狀態：放鬆",
+    "playful": "可能狀態：興奮／活躍",
+    "stress_fear": "可能狀態：緊張／害怕",
+    "defensive": "可能狀態：防備",
     INSUFFICIENT: "資料不足",
     ANALYSING: "分析中",
 }
@@ -79,6 +79,34 @@ BEHAVIOUR_ICONS = {
     "attentive": "👀",
     "playful": "🎾",
     "moving": "🚶",
+    ANALYSING: "◌",
+    INSUFFICIENT: "◌",
+}
+
+ACTIVITY_LABELS = {
+    "resting": "休息",
+    "exploring": "走動／探索",
+    "playing": "玩耍",
+    "active": "活動中",
+    "eating": "可能進食",
+    "drinking": "可能飲水",
+    "door_waiting": "門口停留",
+    "following": "可能正在跟隨",
+    "waiting": "靜止／等待",
+    ANALYSING: "分析中",
+    INSUFFICIENT: "資料不足",
+}
+
+ACTIVITY_ICONS = {
+    "resting": "🛋️",
+    "exploring": "🐕",
+    "playing": "🎾",
+    "active": "🏃",
+    "eating": "🍽️",
+    "drinking": "💧",
+    "door_waiting": "🚪",
+    "following": "👣",
+    "waiting": "🧍",
     ANALYSING: "◌",
     INSUFFICIENT: "◌",
 }
@@ -113,6 +141,15 @@ def behaviour_pack(code: str, confidence: float) -> dict:
         "label": BEHAVIOUR_LABELS.get(code, BEHAVIOUR_LABELS[INSUFFICIENT]),
         "confidence": round(float(confidence), 3),
         "icon": BEHAVIOUR_ICONS.get(code, "◌"),
+    }
+
+
+def activity_pack(code: str, confidence: float) -> dict:
+    return {
+        "id": code,
+        "label": ACTIVITY_LABELS.get(code, ACTIVITY_LABELS[INSUFFICIENT]),
+        "confidence": round(float(confidence), 3),
+        "icon": ACTIVITY_ICONS.get(code, "◌"),
     }
 
 

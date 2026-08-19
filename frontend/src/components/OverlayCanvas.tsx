@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { AnalysisResult, Keypoint } from "../types";
+import type { AnalysisResult, HomeZone, Keypoint } from "../types";
 import { copy, keypointZh } from "../lib/i18n";
 
 const LABEL_ALLOW = new Set([
@@ -17,11 +17,13 @@ export function OverlayCanvas({
   analysis,
   keypoints,
   showLabels,
+  zones = [],
 }: {
   video: HTMLVideoElement | null;
   analysis: AnalysisResult | null;
   keypoints: Keypoint[];
   showLabels: boolean;
+  zones?: HomeZone[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boxRef = useRef<[number, number, number, number] | null>(null);
@@ -61,6 +63,32 @@ export function OverlayCanvas({
       const py = (ny: number) => oy + ny * rh;
 
       const det = analysis?.detection;
+      if (zones.length) {
+        ctx.setLineDash([6, 4]);
+        ctx.lineWidth = 1.2;
+        for (const zone of zones) {
+          const [zx1, zy1, zx2, zy2] = zone.rect;
+          ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
+          ctx.strokeRect(px(zx1), py(zy1), (zx2 - zx1) * rw, (zy2 - zy1) * rh);
+          ctx.setLineDash([]);
+          ctx.fillStyle = "rgba(251, 191, 36, 0.85)";
+          ctx.font = "10px Noto Sans TC, sans-serif";
+          ctx.fillText(zone.name, px(zx1) + 6, py(zy1) + 14);
+          ctx.setLineDash([6, 4]);
+        }
+        ctx.setLineDash([]);
+      }
+
+      for (const obj of analysis?.objects ?? []) {
+        const [ox1, oy1, ox2, oy2] = obj.bbox;
+        ctx.strokeStyle = "rgba(163, 230, 53, 0.45)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px(ox1), py(oy1), (ox2 - ox1) * rw, (oy2 - oy1) * rh);
+        ctx.fillStyle = "rgba(163, 230, 53, 0.9)";
+        ctx.font = "10px Noto Sans TC, sans-serif";
+        ctx.fillText(obj.label, px(ox1) + 4, py(oy1) - 6);
+      }
+
       if (det?.present && det.bbox) {
         const target = det.bbox;
         const prev = boxRef.current;
@@ -118,7 +146,7 @@ export function OverlayCanvas({
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [video, analysis, keypoints, showLabels]);
+  }, [video, analysis, keypoints, showLabels, zones]);
 
   return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />;
 }

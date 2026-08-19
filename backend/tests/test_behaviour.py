@@ -176,9 +176,10 @@ def test_timeline_does_not_cycle_sitting_and_mood():
     analyzer = object.__new__(DogAnalyzer)
     session = SessionState()
     for _ in range(20):
-        analyzer._timeline(session, "sitting", min_seconds=0.0)
+        analyzer._timeline(session, "sitting", "resting", min_seconds=0.0)
     labels = [event["label"] for event in session.timeline]
-    assert labels.count("坐下") == 1
+    assert labels.count("休息") == 1
+    assert labels.count("坐下") == 0
     assert "好奇／警覺" not in labels
     assert labels[0] == "偵測到狗狗"
 

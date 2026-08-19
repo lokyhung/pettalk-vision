@@ -13,9 +13,13 @@ function normalize(raw: Partial<PetProfile> | null): PetProfile {
     species: merged.species || "狗狗",
     breed: merged.breed || "",
     age: merged.age || "",
+    gender: merged.gender || DEFAULT_PROFILE.gender,
+    activityLevel: merged.activityLevel || DEFAULT_PROFILE.activityLevel,
     personality,
     traits,
     likes: merged.likes || "",
+    habits: merged.habits || "",
+    id: merged.id || DEFAULT_PROFILE.id,
   };
 }
 

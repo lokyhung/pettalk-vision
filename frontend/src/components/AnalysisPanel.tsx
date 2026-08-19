@@ -1,6 +1,7 @@
-import { isWeakLabel, type AnalysisResult, type DashboardState } from "../types";
+import { isWeakLabel, ACTIVITY_META, type AnalysisResult, type DashboardState } from "../types";
 import { pct } from "../lib/api";
 import { copy } from "../lib/i18n";
+import { movementBandZh } from "../lib/activity";
 
 function Meter({ value }: { value: number }) {
   const width = Math.max(0, Math.min(100, value * 100));
@@ -57,6 +58,9 @@ export function AnalysisPanel({
   const moodWeak = !analysis || isWeakLabel(analysis.mood);
   const evidence = analysis?.evidence;
   const debug = analysis?.debug;
+  const mv = analysis?.movement;
+  const activityLabel = (id?: string) =>
+    (id && ACTIVITY_META[id as keyof typeof ACTIVITY_META]?.label) || id || "—";
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -151,6 +155,30 @@ export function AnalysisPanel({
         <div className="glass rounded-2xl p-3.5 font-mono text-[11px]">
           <p className="tracking-[0.16em] text-amber-200/90">{copy.debugMode}</p>
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-mute">
+            <dt>目前姿勢</dt>
+            <dd className="text-ink">{mv?.posture || pose?.body.label || "—"}</dd>
+            <dt>整體移動</dt>
+            <dd className="text-ink">{movementBandZh(mv?.globalBand)} ({mv?.global ?? "—"})</dd>
+            <dt>頭部移動</dt>
+            <dd className="text-ink">{movementBandZh(mv?.headBand)} ({mv?.head ?? "—"})</dd>
+            <dt>身體移動</dt>
+            <dd className="text-ink">{movementBandZh(mv?.bodyBand)}</dd>
+            <dt>移動分數</dt>
+            <dd className="text-ink">{mv?.score ?? "—"}</dd>
+            <dt>上一位置</dt>
+            <dd className="text-ink">{mv?.prevCenter ? `(${mv.prevCenter[0]}, ${mv.prevCenter[1]})` : "—"}</dd>
+            <dt>目前位置</dt>
+            <dd className="text-ink">{mv?.center ? `(${mv.center[0]}, ${mv.center[1]})` : "—"}</dd>
+            <dt>位置變化</dt>
+            <dd className="text-ink">{mv?.positionChange ?? "—"}</dd>
+            <dt>候選狀態</dt>
+            <dd className="text-ink">{activityLabel(mv?.candidate)}</dd>
+            <dt>確認狀態</dt>
+            <dd className="text-ink">{activityLabel(mv?.confirmed)}</dd>
+            <dt>狀態持續</dt>
+            <dd className="text-ink">{mv ? `${mv.stateDuration} 秒` : "—"}</dd>
+            <dt>樣本數</dt>
+            <dd className="text-ink">{mv?.samples ?? "—"}</dd>
             <dt>MODEL</dt>
             <dd className="text-ink">{debug?.model || analysis?.model || "—"}</dd>
             <dt>DEVICE</dt>
@@ -163,20 +191,8 @@ export function AnalysisPanel({
             <dd className="text-ink">{debug ? debug.dogConfidence.toFixed(3) : "—"}</dd>
             <dt>POSE CONF</dt>
             <dd className="text-ink">{debug ? debug.poseConfidence.toFixed(3) : "—"}</dd>
-            <dt>DOGS</dt>
-            <dd className="text-ink">{debug?.dogCount ?? det?.count ?? 0}</dd>
             <dt>KEYPOINTS</dt>
             <dd className="text-ink">{debug?.visibleKeypoints ?? "—"}</dd>
-            <dt>BEHAVIOUR</dt>
-            <dd className="text-ink">{debug?.currentBehaviour || analysis?.action.id || "—"}</dd>
-            <dt>STABILITY</dt>
-            <dd className="text-ink">{debug ? debug.behaviourStability.toFixed(2) : "—"}</dd>
-            <dt>STABLE FRAMES</dt>
-            <dd className="text-ink">
-              {debug ? `${debug.stableFrames} / ${debug.window}` : "—"}
-            </dd>
-            <dt>FRAMES USED</dt>
-            <dd className="text-ink">{debug?.framesUsed ?? "—"}</dd>
           </dl>
         </div>
       )}

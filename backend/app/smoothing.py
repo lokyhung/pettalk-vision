@@ -30,6 +30,9 @@ class TemporalSmoother:
         self._raw: deque[dict[str, Any]] = deque(maxlen=self.window)
         self.stable_action: str = ANALYSING
         self.stable_mood: str = INSUFFICIENT
+        self.stable_activity: str = ANALYSING
+        self._pending_activity: str | None = None
+        self._pending_activity_n = 0
         self._pending_action: str | None = None
         self._pending_action_n = 0
         self._pending_mood: str | None = None
@@ -85,6 +88,25 @@ class TemporalSmoother:
         if self._pending_mood_n >= self.mood_frames:
             self.stable_mood = voted
         return self.stable_mood, ratio
+
+    def lock_activity(self, candidate: str) -> tuple[str, float]:
+        values = [row.get("activity_hint", INSUFFICIENT) for row in self._raw]
+        voted, ratio = _majority(
+            values,
+            min_ratio=0.5,
+            min_count=min(self.action_frames, max(3, len(self._raw))),
+            default=ANALYSING,
+        )
+        if candidate not in (INSUFFICIENT, ANALYSING):
+            voted = candidate if voted in (ANALYSING, INSUFFICIENT, candidate) else voted
+        if self._pending_activity == voted:
+            self._pending_activity_n += 1
+        else:
+            self._pending_activity = voted
+            self._pending_activity_n = 1
+        if self._pending_activity_n >= self.action_frames:
+            self.stable_activity = voted
+        return self.stable_activity, ratio
 
     def debug_counts(self) -> dict[str, int | float | str]:
         matching = sum(1 for row in self._raw if row.get("action") == self.stable_action)

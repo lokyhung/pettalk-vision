@@ -10,6 +10,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from .activity import zone_for_bbox
 from .behaviour import build_why, infer_mood, infer_possible_behaviour, interpret_observable
 from .config import get_settings
 from .i18n import (
@@ -18,6 +19,8 @@ from .i18n import (
     NOT_VISIBLE,
     ACTION_ICONS,
     ACTION_LABELS,
+    ACTIVITY_ICONS,
+    ACTIVITY_LABELS,
     STATE_MESSAGES,
     action_pack,
     behaviour_pack,
@@ -32,6 +35,19 @@ from .session import SessionState
 logger = logging.getLogger(__name__)
 
 COCO_DOG = 16
+DETECT_CLASSES = [0, 15, 16, 32, 39, 41, 45, 56, 57, 59, 60]
+OBJECT_META = {
+    0: ("person", "人"),
+    15: ("cat", "其他寵物"),
+    32: ("sports_ball", "球"),
+    39: ("bottle", "瓶子"),
+    41: ("cup", "杯"),
+    45: ("bowl", "碗"),
+    56: ("chair", "椅"),
+    57: ("couch", "沙發"),
+    59: ("bed", "床"),
+    60: ("dining_table", "餐桌"),
+}
 MODEL_CANDIDATES = ("yolo11n-seg.pt", "yolov8n-seg.pt")
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 os.environ.setdefault("YOLO_CONFIG_DIR", str(BACKEND_DIR / "Ultralytics"))
@@ -109,27 +125,48 @@ class DogAnalyzer:
             verbose=False,
             device=self.device,
             imgsz=self.imgsz,
-            conf=threshold,
+            conf=settings.dog_predict_conf,
             iou=0.5,
-            classes=[COCO_DOG],
+            classes=DETECT_CLASSES,
         )
         result = results[0]
 
         dogs: list[tuple[int, float]] = []
+        objects: list[dict] = []
         if result.boxes is not None and len(result.boxes):
             confs = result.boxes.conf.cpu().numpy()
+            clss = result.boxes.cls.cpu().numpy()
+            xyxyn = result.boxes.xyxyn.cpu().numpy()
             for i, c in enumerate(confs):
-                if float(c) >= threshold:
-                    dogs.append((i, float(c)))
+                cls_id = int(clss[i])
+                conf_i = float(c)
+                if cls_id == COCO_DOG and conf_i >= settings.dog_predict_conf:
+                    dogs.append((i, conf_i))
+                elif cls_id in OBJECT_META and conf_i >= threshold:
+                    oid, label = OBJECT_META[cls_id]
+                    box_i = xyxyn[i].tolist()
+                    objects.append(
+                        {
+                            "id": oid,
+                            "label": label,
+                            "confidence": round(conf_i, 4),
+                            "bbox": [round(v, 4) for v in box_i],
+                        }
+                    )
 
         if not dogs:
-            return self._empty(session, now, t_start)
+            return self._empty(session, now, t_start, objects)
 
         session.missed = 0
-
-        dogs.sort(key=lambda row: row[1], reverse=True)
-        best, conf = dogs[0]
-        box = result.boxes.xyxyn[best].cpu().numpy().tolist()
+        xyxyn = result.boxes.xyxyn.cpu().numpy()
+        best, conf, iou = _select_tracked_dog(dogs, xyxyn, session.last_bbox, settings.track_iou_min)
+        if session.last_bbox is None or iou < settings.track_iou_min:
+            session.track_id += 1
+            session.track_hits = 1
+        else:
+            session.track_hits += 1
+        box = xyxyn[best].tolist()
+        session.last_bbox = [float(v) for v in box]
         xyxy = result.boxes.xyxy[best].cpu().numpy()
 
         mask = None
@@ -140,11 +177,12 @@ class DogAnalyzer:
 
         pose_quality = 0.0
         keypoints = empty_keypoints()
+        raw_keypoints = empty_keypoints()
         if mask is not None and int(mask.sum()) > 80:
-            keypoints, session.head_sign, pose_quality = estimate_keypoints(
+            raw_keypoints, session.head_sign, pose_quality = estimate_keypoints(
                 mask, xyxy, w, h, session.head_sign
             )
-            keypoints = smooth_keypoints(session.prev_keypoints, keypoints, alpha=0.38)
+            keypoints = smooth_keypoints(session.prev_keypoints, raw_keypoints, alpha=0.38)
             session.prev_keypoints = keypoints
 
         cx = (box[0] + box[2]) / 2
@@ -174,9 +212,17 @@ class DogAnalyzer:
         truncated = box[0] < border or box[1] < border or box[2] > 1 - border or box[3] > 1 - border
 
         raw = interpret_observable(keypoints, box, pose_quality, smooth_speed, truncated)
+        zones = (profile or {}).get("zones") if isinstance(profile, dict) else None
+        zone = zone_for_bbox(box, zones if isinstance(zones, list) else None)
         behaviour_hint, _ = infer_possible_behaviour(raw["pose"], raw["action"])
         mood_hint, _ = infer_mood(raw["pose"], raw["action"], behaviour_hint)
-        session.smoother.push({**raw, "mood_hint": mood_hint, "behaviour_hint": behaviour_hint})
+        session.smoother.push(
+            {
+                **raw,
+                "mood_hint": mood_hint,
+                "behaviour_hint": behaviour_hint,
+            }
+        )
 
         pose_ids = {
             "head": session.smoother.pose_field("head")[0],
@@ -189,6 +235,30 @@ class DogAnalyzer:
         behaviour_id, behaviour_cues = infer_possible_behaviour(pose_ids, action_id)
         mood_hint, mood_cues = infer_mood(pose_ids, action_id, behaviour_id)
         mood_id, mood_conf = session.smoother.lock_mood(mood_hint)
+        pose_for_activity = pose_ids["body"] if pose_ids["body"] not in (INSUFFICIENT, ANALYSING, NOT_VISIBLE) else raw["pose"].get("body") or ""
+        action_for_activity = action_id if action_id not in (INSUFFICIENT, ANALYSING) else raw["action"]
+        activity = session.activity_engine.observe(
+            now=now,
+            present=True,
+            bbox=box,
+            keypoints=raw_keypoints,
+            posture=pose_for_activity or "",
+            action=action_for_activity,
+            objects=objects,
+            zone=zone,
+        )
+        elapsed = session.elapsed()
+        if activity.get("movement"):
+            raw_dur = float(activity["movement"].get("stateDuration") or 0.0)
+            activity["movement"]["stateDuration"] = round(min(max(0.0, raw_dur), elapsed), 2)
+        if isinstance(activity.get("evidence"), list):
+            activity["evidence"] = [
+                f"活動持續 {activity['movement']['stateDuration']:.1f} 秒"
+                if isinstance(line, str) and line.startswith("活動持續") and activity.get("movement")
+                else line
+                for line in activity["evidence"]
+            ]
+        activity_id = str(activity.get("id") or ANALYSING)
         if mood_id not in (INSUFFICIENT, ANALYSING):
             mood_conf = min(0.78, max(float(mood_conf), 0.42))
         else:
@@ -217,6 +287,7 @@ class DogAnalyzer:
             mood_id = INSUFFICIENT
             mood_conf = 0.0
             behaviour_id = INSUFFICIENT
+            # Keep temporal activity even when pose is still analysing.
 
         pet_name = (profile or {}).get("name") or "Mochi"
         why, observe = build_why(
@@ -228,7 +299,7 @@ class DogAnalyzer:
             session.explanation_revision += 1
             session.last_explained = explained
 
-        self._timeline(session, action_id, settings.timeline_min_seconds)
+        self._timeline(session, action_id, activity_id, settings.timeline_min_seconds)
         fps = _fps(session)
         debug = session.smoother.debug_counts()
 
@@ -246,6 +317,9 @@ class DogAnalyzer:
                 "confidence": round(conf, 4),
                 "bbox": [round(v, 4) for v in box],
                 "count": len(dogs),
+                "trackId": session.track_id,
+                "trackHits": session.track_hits,
+                "iou": round(float(iou), 3),
             },
             "keypoints": keypoints,
             "skeleton": SKELETON_INDEX,
@@ -256,6 +330,16 @@ class DogAnalyzer:
                 0.55 if behaviour_id not in (ANALYSING, INSUFFICIENT) else 0.0,
             ),
             "mood": mood_pack(mood_id, mood_conf),
+            "activity": activity,
+            "movement": activity.get("movement"),
+            "objects": objects,
+            "location": {
+                "id": (zone or {}).get("id"),
+                "name": (zone or {}).get("name"),
+                "type": (zone or {}).get("type"),
+            }
+            if zone
+            else None,
             "evidence": _build_evidence(True, pose_ids, visible_kps),
             "cues": raw["cues"],
             "why": why,
@@ -281,6 +365,7 @@ class DogAnalyzer:
                 "poseConfidence": round(pose_quality, 3),
                 "dogCount": len(dogs),
                 "visibleKeypoints": visible_kps,
+                "currentActivity": activity_id,
                 "currentBehaviour": action_id,
                 "possibleBehaviour": behaviour_id,
                 "possibleMood": mood_id,
@@ -288,15 +373,21 @@ class DogAnalyzer:
                 "stableFrames": int(debug["stableFrames"]),
                 "framesUsed": int(debug["framesUsed"]),
                 "window": int(debug["window"]),
+                "movementScore": (activity.get("movement") or {}).get("score"),
+                "activityCandidate": (activity.get("movement") or {}).get("candidate"),
+                "activityConfirmed": (activity.get("movement") or {}).get("confirmed"),
+                "trackId": session.track_id,
+                "trackHits": session.track_hits,
+                "iou": round(float(iou), 3),
             },
         }
 
-    def _empty(self, session: SessionState, now: float, t_start: float) -> dict:
+    def _empty(self, session: SessionState, now: float, t_start: float, objects: list[dict] | None = None) -> dict:
         session.last_ts = now
         session.missed += 1
         session.frame_times.append(now)
         session.frame_times = session.frame_times[-24:]
-        if session.missed >= 3:
+        if session.missed >= 12:
             from .smoothing import TemporalSmoother
 
             session.smoother = TemporalSmoother()
@@ -305,6 +396,18 @@ class DogAnalyzer:
             session.speeds = []
             session.keypoint_speeds = []
             session.centroid_trace = []
+            session.last_bbox = None
+            session.track_hits = 0
+        activity = session.activity_engine.observe(
+            now=now,
+            present=False,
+            bbox=None,
+            keypoints=[],
+            posture="",
+            action="",
+            objects=objects or [],
+            zone=None,
+        )
         pose_ids = {
             "head": INSUFFICIENT,
             "ears": INSUFFICIENT,
@@ -328,6 +431,10 @@ class DogAnalyzer:
             "action": action_pack(INSUFFICIENT, 0.0),
             "behaviour": behaviour_pack(INSUFFICIENT, 0.0),
             "mood": mood_pack(INSUFFICIENT, 0.0),
+            "activity": activity,
+            "movement": activity.get("movement"),
+            "objects": objects or [],
+            "location": None,
             "evidence": _build_evidence(False, pose_ids, 0),
             "cues": [],
             "why": "畫面中未偵測到狗狗，因此沒有可觀察的姿勢線索。",
@@ -353,6 +460,7 @@ class DogAnalyzer:
                 "poseConfidence": 0.0,
                 "dogCount": 0,
                 "visibleKeypoints": 0,
+                "currentActivity": INSUFFICIENT,
                 "currentBehaviour": INSUFFICIENT,
                 "possibleBehaviour": INSUFFICIENT,
                 "possibleMood": INSUFFICIENT,
@@ -363,8 +471,8 @@ class DogAnalyzer:
             },
         }
 
-    def _timeline(self, session: SessionState, action: str, min_seconds: float) -> None:
-        """Record only stable action *changes*. Never cycle mood vs pose."""
+    def _timeline(self, session: SessionState, action: str, activity: str, min_seconds: float) -> None:
+        """Record dog appearance and stable activity sessions, not every 0.5s sample."""
         elapsed = session.elapsed()
         if not session.dog_announced:
             session.dog_announced = True
@@ -378,23 +486,61 @@ class DogAnalyzer:
                     "icon": "🐕",
                 }
             )
-        if action in (INSUFFICIENT, ANALYSING):
+        if activity in (INSUFFICIENT, ANALYSING):
             return
-        if session.last_timeline_action == action:
+        if session.last_timeline_activity == activity:
             return
-        if session.last_timeline_action and (elapsed - session.last_timeline_at) < min_seconds:
+        if session.last_timeline_activity and (elapsed - session.last_timeline_at) < min_seconds:
             return
+        session.last_timeline_activity = activity
         session.last_timeline_action = action
         session.last_timeline_at = elapsed
         session.timeline.append(
             {
                 "t": round(elapsed, 2),
-                "kind": "action",
-                "id": action,
-                "label": ACTION_LABELS.get(action, action),
-                "icon": ACTION_ICONS.get(action, "•"),
+                "kind": "activity",
+                "id": activity,
+                "label": ACTIVITY_LABELS.get(activity, ACTION_LABELS.get(action, action)),
+                "icon": ACTIVITY_ICONS.get(activity, ACTION_ICONS.get(action, "•")),
             }
         )
+
+
+def _iou(a: list[float] | None, b: list[float] | None) -> float:
+    if not a or not b or len(a) < 4 or len(b) < 4:
+        return 0.0
+    x1 = max(a[0], b[0])
+    y1 = max(a[1], b[1])
+    x2 = min(a[2], b[2])
+    y2 = min(a[3], b[3])
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    if inter <= 0:
+        return 0.0
+    area_a = max(0.0, a[2] - a[0]) * max(0.0, a[3] - a[1])
+    area_b = max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
+    union = area_a + area_b - inter
+    return float(inter / union) if union > 1e-9 else 0.0
+
+
+def _select_tracked_dog(
+    dogs: list[tuple[int, float]],
+    xyxyn: np.ndarray,
+    prev_bbox: list[float] | None,
+    iou_min: float,
+) -> tuple[int, float, float]:
+    """Keep the same dog across frames using IoU. Displayed confidence stays raw YOLO."""
+    if not prev_bbox:
+        idx, conf = max(dogs, key=lambda row: row[1])
+        return idx, conf, 0.0
+    ranked: list[tuple[float, int, float, float]] = []
+    for idx, conf in dogs:
+        box = xyxyn[idx].tolist()
+        overlap = _iou(prev_bbox, box)
+        score = overlap * 0.75 + conf * 0.25 if overlap >= iou_min else conf * 0.05
+        ranked.append((score, idx, conf, overlap))
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    _, idx, conf, overlap = ranked[0]
+    return idx, conf, overlap
 
 
 def _keypoint_displacement(session: SessionState, keypoints: list[dict], min_conf: float) -> float:
