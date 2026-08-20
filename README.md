@@ -43,7 +43,13 @@ If you later train or obtain a `*.pt` pose checkpoint, set `CUSTOM_POSE_MODEL=/a
 
 - Python 3.11+ (3.13 works)
 - Node.js 20+
-- A webcam, **or** a local MP4 at `frontend/public/assets/demo-dog.mp4`
+- A webcam, **or** demo MP4s under `frontend/public/videos/`
+
+## Deploy (permanent public URL)
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for **Vercel (frontend) + Railway (backend)**.
+
+Live detection always needs the Python backend (YOLO). Frontend-only hosting cannot run CV.
 
 ## Quick start
 

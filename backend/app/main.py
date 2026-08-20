@@ -38,10 +38,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+def _cors_origins() -> list[str]:
+    raw = (get_settings().cors_origins or "*").strip()
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()] or ["*"]
+
+
+_origins = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    # Browsers forbid credentials with wildcard origins.
+    allow_credentials=_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -86,6 +95,7 @@ def _decode_image(data: bytes) -> np.ndarray | None:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    """Liveness for Railway. Does not run a new YOLO inference call."""
     settings = get_settings()
     ready = analyzer is not None
     return {

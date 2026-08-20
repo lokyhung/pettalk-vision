@@ -15,12 +15,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Local default stays loopback. Production/Docker CMD binds 0.0.0.0 explicitly.
+    # Railway sets PORT; pydantic maps env PORT → port.
     host: str = "127.0.0.1"
     port: int = 8000
     analysis_imgsz: int = 640
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     custom_pose_model: str = ""
+    # Comma-separated origins, or "*" for prototype. Example:
+    # CORS_ORIGINS=https://pettalk.vercel.app,http://127.0.0.1:5173
+    cors_origins: str = "*"
 
     # Single source of truth for detection / pose / smoothing.
     dog_detection_threshold: float = 0.55

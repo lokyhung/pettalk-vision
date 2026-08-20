@@ -1,11 +1,40 @@
 import type { AnalysisResult, Keypoint, PetProfile } from "../types";
 
-export function apiBase(): string {
-  return import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+/** Prefer HTTPS when the page itself is HTTPS (avoids mixed-content blocks). */
+function upgradeToSecureHttp(url: string): string {
+  if (typeof location !== "undefined" && location.protocol === "https:" && url.startsWith("http://")) {
+    return `https://${url.slice("http://".length)}`;
+  }
+  return url;
 }
 
+/** Prefer WSS when the page itself is HTTPS. */
+function upgradeToSecureWs(url: string): string {
+  if (typeof location !== "undefined" && location.protocol === "https:" && url.startsWith("ws://")) {
+    return `wss://${url.slice("ws://".length)}`;
+  }
+  return url;
+}
+
+/**
+ * API origin for production builds.
+ * - Local `npm run dev`: leave unset; Vite proxies `/api` and `/ws` to 127.0.0.1:8000
+ * - Vercel: set `VITE_API_URL=https://YOUR-RAILWAY-BACKEND`
+ */
+export function apiBase(): string {
+  const raw = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+  return raw ? upgradeToSecureHttp(raw) : "";
+}
+
+/**
+ * WebSocket URL for `/ws/analyze`.
+ * - Local dev: `ws(s)://localhost:5173/ws/analyze` via Vite proxy
+ * - Production: `VITE_WS_URL`, or derived as `wss://<api-host>/ws/analyze`
+ */
 export function wsUrl(): string {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  if (import.meta.env.VITE_WS_URL) {
+    return upgradeToSecureWs(import.meta.env.VITE_WS_URL);
+  }
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   if (import.meta.env.DEV) return `${proto}//${location.host}/ws/analyze`;
   const base = apiBase();

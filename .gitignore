@@ -16,21 +16,27 @@ frontend/.vite/
 # Environment
 .env
 .env.local
+.env.*.local
 backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.production.local
 
-# Models (auto-downloaded)
+# Models (auto-downloaded locally / in Docker build)
 backend/models/*.pt
 *.pt
 runs/
 datasets/
 backend/Ultralytics/
 
-# OS / editor
+# OS / editor / hosts
 .vercel
+.railway
 .DS_Store
 .idea/
 .vscode/
 *.log
+.cursor/
 
 # Test / coverage
 coverage/
