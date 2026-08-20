@@ -1,0 +1,22 @@
+# Used when Railway builds from the repository root.
+frontend/
+node_modules/
+**/node_modules/
+backend/.venv/
+.venv/
+**/__pycache__/
+**/*.py[cod]
+.git/
+.cursor/
+.vercel/
+.env
+.env.*
+*.md
+!DEPLOYMENT.md
+frontend/public/
+frontend/src/
+frontend/dist/
+**/.DS_Store
+backend/Ultralytics/
+**/*.pt
+backend/tests/

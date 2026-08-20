@@ -1,7 +1,8 @@
-# Railway: set service Root Directory to `backend`
+# IMPORTANT: In Railway → Service Settings → Root Directory = `backend`
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+watchPatterns = ["**"]
 
 [deploy]
 healthcheckPath = "/health"

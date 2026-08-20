@@ -1,5 +1,5 @@
-# PetTalk Vision backend — Railway / production image
-# Build context must be the `backend/` directory (Railway Root Directory = backend).
+# Fallback when Railway Root Directory is the repo root (not `backend/`).
+# Prefer setting Root Directory = backend and using backend/Dockerfile.
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -22,17 +22,17 @@ RUN apt-get update \
       curl \
  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --upgrade pip \
  && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu \
  && pip install -r requirements.txt
 
-COPY scripts/prefetch_model.py ./scripts/prefetch_model.py
+COPY backend/scripts/prefetch_model.py ./scripts/prefetch_model.py
 RUN mkdir -p models Ultralytics/mpl .cache/torch \
  && python scripts/prefetch_model.py \
  && ls -lh models/
 
-COPY app ./app
+COPY backend/app ./app
 
 EXPOSE 8000
 

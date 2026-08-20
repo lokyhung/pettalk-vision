@@ -11,6 +11,7 @@ tests/
 !.env.example
 Ultralytics/
 *.pt
+!scripts/
 runs/
 datasets/
 .DS_Store
