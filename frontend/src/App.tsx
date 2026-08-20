@@ -14,6 +14,7 @@ import { loadSettings, saveSettings, loadZones, saveZones } from "./lib/storage"
 import { buildDemoStory } from "./lib/demoStory";
 import { liveActivity, groupTimeline, totalsFor } from "./lib/activity";
 import { DEMO_VIDEOS, DEFAULT_DEMO_ID, demoActivityAt, demoById, demoPlaybackEvents, demoTimelineEvents } from "./lib/demos";
+import { buildDemoPresentationAnalysis } from "./lib/demoPresentation";
 import { fetchHealth } from "./lib/api";
 import { ruleSummary } from "./lib/summary";
 import { copy } from "./lib/i18n";
@@ -55,6 +56,12 @@ export default function App() {
   );
   const demoOriginRef = useRef(Date.now());
   const demo = demoById(demoId);
+  const presentationAnalysis = useMemo(() => {
+    if (mode !== "demo" || cvAvailable || !streaming) return null;
+    return buildDemoPresentationAnalysis(demo, videoTime);
+  }, [mode, cvAvailable, streaming, demo, videoTime]);
+  const effectiveAnalysis = cvAvailable ? analysis : presentationAnalysis;
+  const presentationKeypoints = presentationAnalysis?.keypoints ?? [];
 
   useEffect(() => {
     fetchHealth()
@@ -142,7 +149,7 @@ export default function App() {
     if (mode === "camera" && error && !stream) setActive(false);
   }, [error, stream, mode]);
 
-  const live = liveActivity(analysis, zones);
+  const live = liveActivity(effectiveAnalysis, zones);
   const meta = ACTIVITY_META[live.id] ?? { icon: "◌", label: live.id };
   const demoSeg = mode === "demo" ? demoActivityAt(demo, videoTime) : null;
   const overlayActivity =
@@ -155,7 +162,7 @@ export default function App() {
   const timelineEvents =
     mode === "demo"
       ? demoTimelineEvents(demo, videoTime)
-      : groupTimeline(analysis?.timeline ?? []);
+      : groupTimeline(effectiveAnalysis?.timeline ?? []);
   const demoEvents = useMemo(
     () => (mode === "demo" ? demoPlaybackEvents(demo, videoTime, profile.id, demoOriginRef.current) : []),
     [mode, demo, videoTime, profile.id],
@@ -202,7 +209,7 @@ export default function App() {
           {tab === "home" && (
             <HomeScreen
               profile={profile}
-              analysis={analysis}
+              analysis={effectiveAnalysis}
               streaming={streaming}
               recent={homeRecent}
               summary={homeSummary}
@@ -224,8 +231,8 @@ export default function App() {
                   mode={mode}
                   stream={stream}
                   active={active}
-                  analysis={analysis}
-                  keypoints={displayKeypoints}
+                  analysis={effectiveAnalysis}
+                  keypoints={cvAvailable ? displayKeypoints : presentationKeypoints}
                   cameraError={error}
                   backendError={
                     mode === "demo"
@@ -250,7 +257,7 @@ export default function App() {
                 />
                 {streaming && (
                   <div className="hidden lg:block">
-                    <BehaviourTimeline events={timelineEvents} elapsed={mode === "demo" ? videoTime : analysis?.t ?? 0} />
+                    <BehaviourTimeline events={timelineEvents} elapsed={mode === "demo" ? videoTime : effectiveAnalysis?.t ?? 0} />
                   </div>
                 )}
               </div>
@@ -277,7 +284,7 @@ export default function App() {
                   </button>
                 )}
                 <LiveInsight
-                  analysis={analysis}
+                  analysis={effectiveAnalysis}
                   profile={profile}
                   live={live}
                   streaming={streaming}
@@ -285,10 +292,11 @@ export default function App() {
                   videoTime={videoTime}
                   summary={demoSummary}
                   events={demoEvents}
+                  hostedPresentation={mode === "demo" && !cvAvailable}
                 />
                 {streaming && (
                   <div className="lg:hidden">
-                    <BehaviourTimeline events={timelineEvents} elapsed={mode === "demo" ? videoTime : analysis?.t ?? 0} />
+                    <BehaviourTimeline events={timelineEvents} elapsed={mode === "demo" ? videoTime : effectiveAnalysis?.t ?? 0} />
                   </div>
                 )}
                 {settings.debugMode && <AnalysisPanel analysis={analysis} debugMode />}

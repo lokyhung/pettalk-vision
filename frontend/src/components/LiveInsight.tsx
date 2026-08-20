@@ -38,6 +38,7 @@ export function LiveInsight({
   videoTime = 0,
   summary = null,
   events = [],
+  hostedPresentation = false,
 }: {
   analysis: AnalysisResult | null;
   profile: PetProfile;
@@ -47,6 +48,7 @@ export function LiveInsight({
   videoTime?: number;
   summary?: ActivitySummary | null;
   events?: ActivityEvent[];
+  hostedPresentation?: boolean;
 }) {
   const det = analysis?.detection;
   const pose = analysis?.pose;
@@ -62,13 +64,15 @@ export function LiveInsight({
       ? { icon: segment.icon, label: segment.label }
       : ACTIVITY_META[segment.activity] ?? { icon: segment.icon, label: segment.label }
     : cvMeta;
-  const agrees = demo ? cvAgreesWithDemo(segment?.activity ?? demo.expectedActivity, live.id, Boolean(det?.present)) : null;
+  const agrees = demo && !hostedPresentation ? cvAgreesWithDemo(segment?.activity ?? demo.expectedActivity, live.id, Boolean(det?.present)) : null;
   const evidence = demo
-    ? [
-        "示範片段＋動作分析",
-        agrees ? "✓ 動作分析一致" : "△ 動作分析與示範標籤不一致",
-        ...live.evidence.slice(0, 5),
-      ]
+    ? hostedPresentation
+      ? ["示範時間軸標籤", segment?.label ?? demo.title, "框線為示範用途（公開網頁未連接 YOLO 後端）"]
+      : [
+          "示範片段＋動作分析",
+          agrees ? "✓ 動作分析一致" : "△ 動作分析與示範標籤不一致",
+          ...live.evidence.slice(0, 5),
+        ]
     : live.evidence;
 
   return (
@@ -97,7 +101,9 @@ export function LiveInsight({
           {streaming ? `${headline.icon} ${headline.label}` : copy.waiting}
         </p>
         {demo && streaming && (
-          <p className="mt-1 text-[11px] text-amber-200">{copy.demoAnalysis}</p>
+          <p className="mt-1 text-[11px] text-amber-200">
+            {hostedPresentation ? "公開示範：活動標籤來自時間軸註解" : copy.demoAnalysis}
+          </p>
         )}
         <p className="mt-1 font-mono text-xs text-cyan-300">
           {copy.activityJudgeConf} {streaming ? pct(activityConf) : "—"}
@@ -140,7 +146,7 @@ export function LiveInsight({
         </p>
       </div>
 
-      {demo && (
+      {demo && !hostedPresentation && (
         <div className="glass hidden rounded-2xl p-3.5 lg:block">
           <p className="text-[11px] tracking-[0.16em] text-amber-200/90">{copy.cvEngine}</p>
           <p className="mt-1 text-sm">
