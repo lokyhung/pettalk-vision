@@ -14,18 +14,14 @@ import { loadSettings, saveSettings, loadZones, saveZones } from "./lib/storage"
 import { buildDemoStory } from "./lib/demoStory";
 import { liveActivity, groupTimeline, totalsFor } from "./lib/activity";
 import { DEMO_VIDEOS, DEFAULT_DEMO_ID, demoActivityAt, demoById, demoPlaybackEvents, demoTimelineEvents } from "./lib/demos";
-import { fetchHealth } from "./lib/api";
 import { ruleSummary } from "./lib/summary";
 import { copy } from "./lib/i18n";
 import { ACTIVITY_META, ZONE_PRESETS, type ActivityEvent, type HomeZone, type InputMode, type PetProfile, type TabId, type ZoneType } from "./types";
 
-const hostedDemo = import.meta.env.PROD;
-
 export default function App() {
-  const [tab, setTab] = useState<TabId>(hostedDemo ? "camera" : "home");
-  const [mode, setMode] = useState<InputMode>(hostedDemo ? "demo" : "camera");
-  const [active, setActive] = useState(hostedDemo);
-  const [cvAvailable, setCvAvailable] = useState(false);
+  const [tab, setTab] = useState<TabId>("home");
+  const [mode, setMode] = useState<InputMode>("camera");
+  const [active, setActive] = useState(false);
   const [profile, setProfile] = useState<PetProfile>(loadProfile);
   const [settings, setSettings] = useState(loadSettings);
   const [zones, setZones] = useState<HomeZone[]>(loadZones);
@@ -39,7 +35,7 @@ export default function App() {
   const streaming = active && (mode === "demo" || Boolean(stream));
   const { analysis, displayKeypoints, backendError } = useAnalysisStream(
     video,
-    streaming && cvAvailable,
+    streaming,
     profile,
     zones,
     resetToken,
@@ -55,12 +51,6 @@ export default function App() {
   );
   const demoOriginRef = useRef(Date.now());
   const demo = demoById(demoId);
-
-  useEffect(() => {
-    fetchHealth()
-      .then(() => setCvAvailable(true))
-      .catch(() => setCvAvailable(false));
-  }, []);
 
   useEffect(() => {
     saveProfile(profile);
@@ -227,14 +217,7 @@ export default function App() {
                   analysis={analysis}
                   keypoints={displayKeypoints}
                   cameraError={error}
-                  backendError={
-                    mode === "demo"
-                      ? null
-                      : backendError ||
-                        (active && !cvAvailable
-                          ? "即時鏡頭分析需要本機 Python 視覺後端。這個公開網頁只提供示範影片。"
-                          : null)
-                  }
+                  backendError={backendError}
                   onStartCamera={startCamera}
                   onSwitchDemo={() => startDemo()}
                   starting={starting}
